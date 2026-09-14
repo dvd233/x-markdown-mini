@@ -94,8 +94,9 @@ function stampFontClasses(list: MiniNode[], inherited: string): void {
 
 // --- Tokenizers ---
 
-const inlineRule = /^(?:\${1,2}([^\$\n]+?)\${1,2}|\\\((.+?)\\\))/;
-const blockRule = /^(\${1,2})\n([\s\S]+?)\n\1(?:\n|$)|^\\\[((?:\\.|[^\\])+?)\\\]/;
+const inlineRule = /^(?:\$(?!\$)([^$\n]+?)\$(?!\$)|\\\((.+?)\\\))/;
+const blockRule =
+  /^(?:(\${1,2})\n([\s\S]+?)\n\1|\$\$([\s\S]+?)\$\$)(?:\n|$)|^\\\[((?:\\.|[^\\])+?)\\\]/;
 
 function inlineKatexTokenizer(this: any, src: string): Tokens.Generic | undefined {
   const match = src.match(inlineRule);
@@ -112,7 +113,7 @@ function inlineKatexTokenizer(this: any, src: string): Tokens.Generic | undefine
 function blockKatexTokenizer(this: any, src: string): Tokens.Generic | undefined {
   const match = src.match(blockRule);
   if (!match) return undefined;
-  const text = replaceAlign((match[2] || match[3]).trim());
+  const text = replaceAlign((match[2] || match[3] || match[4]).trim());
   return {
     type: 'blockKatex',
     raw: match[0],
@@ -138,7 +139,8 @@ function blockStart(src: string): number | undefined {
     const bracket = src.indexOf('\\[', from);
     if (dollar === -1 && bracket === -1) return undefined;
     const index = Math.min(dollar === -1 ? Infinity : dollar, bracket === -1 ? Infinity : bracket);
-    if (blockRule.test(src.slice(index))) return index;
+    const startsLine = index === 0 || src.charCodeAt(index - 1) === 10;
+    if (startsLine && blockRule.test(src.slice(index))) return index;
     from = index + 1;
   }
   return undefined;

@@ -284,10 +284,42 @@ describe('Latex — tokenizer', () => {
   it('tokenizes block math $$...$$', async () => {
     const { default: Latex } = await import('../plugins/Latex/index.js');
     const md = new XMarkdownMini({ extensions: [Latex()] });
-    // Block math requires newline after $$ (matching the old @alipay/markdown-x-math pattern)
+    // Canonical delimiters on their own lines remain supported.
     const tokens = md.parse('$$\nx^2 + y^2 = z^2\n$$');
     const types = tokens.map((t: any) => t.type);
     expect(types).toContain('blockKatex');
+  });
+
+  it('keeps tokenizing newline-delimited $...$ as block math', async () => {
+    const { default: Latex } = await import('../plugins/Latex/index.js');
+    const md = new XMarkdownMini({ extensions: [Latex()] });
+    const tokens = md.parse('$\nx^2\n$');
+
+    expect(tokens.map((t: any) => t.type)).toEqual(['blockKatex']);
+    expect((tokens[0] as any).text).toBe('x^2');
+  });
+
+  it('tokenizes same-line $$...$$ as block math', async () => {
+    const { default: Latex } = await import('../plugins/Latex/index.js');
+    const md = new XMarkdownMini({ extensions: [Latex()] });
+    const tokens = md.parse('$$x^2 + y^2 = z^2$$');
+
+    expect(tokens.map((t: any) => t.type)).toEqual(['blockKatex']);
+    expect((tokens[0] as any).text).toBe('x^2 + y^2 = z^2');
+    expect((tokens[0] as any).displayMode).toBe(true);
+  });
+
+  it('tokenizes attached multiline $$ delimiters without consuming the following inline formula', async () => {
+    const { default: Latex } = await import('../plugins/Latex/index.js');
+    const md = new XMarkdownMini({ extensions: [Latex()] });
+    const tokens = md.parse(
+      '$$\\begin{cases}\na = 1 \\\\\nb = 2\n\\end{cases}$$\n\n$\\therefore a + b = 3$',
+    );
+
+    expect(tokens[0].type).toBe('blockKatex');
+    expect((tokens[0] as any).text).toContain('\\begin{cases}');
+    const paragraph = tokens.find((token: any) => token.type === 'paragraph') as any;
+    expect(paragraph.tokens.map((token: any) => token.type)).toContain('inlineKatex');
   });
 
   it('a `$` closing a line does not swallow inline math or split the paragraph', async () => {

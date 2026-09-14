@@ -264,6 +264,21 @@ describe('XMarkdownMini — streamingFixup option', () => {
     expect(flat.some((n) => String(n.attrs?.class ?? '').includes('katex-display'))).toBe(true);
   });
 
+  it('renders a complete compact block formula as display math while streaming', () => {
+    const md = new XMarkdownMini({ extensions: [Latex()] });
+    const patches: MiniNode[][] = [];
+
+    md.renderNodes({
+      content: '$$x^2 + y^2 = z^2$$',
+      streaming: { hasNextChunk: true },
+      onPatch: (nodes) => patches.push(nodes),
+    });
+
+    const flat = flatten(patches[patches.length - 1]);
+    expect(flat.some((n) => String(n.attrs?.class ?? '').includes('katex-display'))).toBe(true);
+    expect(flat.some((n) => String(n.attrs?.class ?? '').includes('katex-inline'))).toBe(false);
+  });
+
   it('semantic streaming config accepts chunkDelay for typewriter mode', () => {
     vi.useFakeTimers();
     try {
