@@ -264,16 +264,20 @@ describe('XMarkdownMini — streamingFixup option', () => {
     expect(flat.some((n) => String(n.attrs?.class ?? '').includes('katex-display'))).toBe(true);
   });
 
-  it('renders a complete compact block formula as display math while streaming', () => {
+  it('renders compact block math across split opening and closing delimiters', () => {
     const md = new XMarkdownMini({ extensions: [Latex()] });
     const patches: MiniNode[][] = [];
 
-    md.renderNodes({
-      content: '$$x^2 + y^2 = z^2$$',
-      streaming: { hasNextChunk: true },
-      onPatch: (nodes) => patches.push(nodes),
+    const updates = ['$', '$$x^2 + y^2 = z^2', '$$x^2 + y^2 = z^2$', '$$x^2 + y^2 = z^2$$'];
+    updates.forEach((content, index) => {
+      md.renderNodes({
+        content,
+        streaming: { hasNextChunk: index < updates.length - 1 },
+        onPatch: (nodes) => patches.push(nodes),
+      });
     });
 
+    expect(patches).toHaveLength(updates.length);
     const flat = flatten(patches[patches.length - 1]);
     expect(flat.some((n) => String(n.attrs?.class ?? '').includes('katex-display'))).toBe(true);
     expect(flat.some((n) => String(n.attrs?.class ?? '').includes('katex-inline'))).toBe(false);
